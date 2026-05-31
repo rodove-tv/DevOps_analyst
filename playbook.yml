@@ -1,5 +1,4 @@
 ---
----
 - name: Déploiement de la stack d'Observabilité (PLG) sur Kubernetes
   hosts: localhost
   gather_facts: no
