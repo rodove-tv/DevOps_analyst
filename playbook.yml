@@ -1,27 +1,11 @@
 ---
-- name: Déploiement de la stack d'Observabilité (PLG)
+---
+- name: Déploiement de la stack d'Observabilité (PLG) sur Kubernetes
   hosts: localhost
-  become: yes # Permet d'exécuter les commandes en tant qu'administrateur (root)
+  gather_facts: no
 
   tasks:
-    - name: 1. Créer le dossier d'accueil sur le serveur
-      file:
-        path: /opt/observability
-        state: directory
-        mode: '0755'
-
-    - name: 2. Copier tous les fichiers de ton Git vers le serveur
-      copy:
-        src: ./
-        dest: /opt/observability/
-
-    - name: 3. Arrêter l'ancienne version si elle tourne déjà (Nettoyage)
-      command: docker compose down
-      args:
-        chdir: /opt/observability
-      ignore_errors: yes # On ignore l'erreur si c'est le tout premier lancement
-
-    - name: 4. Démarrer la nouvelle stack PLG
-      command: docker compose up -d
-      args:
-        chdir: /opt/observability
+    - name: Appliquer le manifeste Kubernetes (Loki et Grafana)
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('file', 'k8s-observability.yml') | from_yaml }}"
