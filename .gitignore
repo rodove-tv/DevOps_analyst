@@ -1,0 +1,21 @@
+# clés privées SSH
+*.pem
+*.key
+cle.pem
+id_rsa
+
+# Fichiers temporaires générés par Ansible
+*.retry
+.ansible/
+
+# Fichiers de configuration locaux/secrets
+.env
+secret*.yml
+
+# Fichiers système (Mac/Windows)
+.DS_Store
+Thumbs.db
+
+# Dossiers d'environnement de développement
+.vscode/
+.idea/
