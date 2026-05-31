@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+---
+# Déploiement de Loki
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loki
+  namespace: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loki
+  template:
+    metadata:
+      labels:
+        app: loki
+    spec:
+      containers:
+      - name: loki
+        image: grafana/loki:latest
+        ports:
+        - containerPort: 3100
+---
+# Service pour exposer Loki à Grafana
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki
+  namespace: observability
+spec:
+  selector:
+    app: loki
+  ports:
+    - protocol: TCP
+      port: 3100
+      targetPort: 3100
+---
+# Déploiement de Grafana
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:latest
+        ports:
+        - containerPort: 3000
+---
+# Service NodePort pour accéder à Grafana depuis ton navigateur
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: observability
+spec:
+  type: NodePort
+  selector:
+    app: grafana
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+      nodePort: 32000 # Tu pourras accéder à Grafana sur le port 32000
