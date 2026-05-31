@@ -7,4 +7,4 @@
     - name: Appliquer le manifeste Kubernetes (Loki et Grafana)
       kubernetes.core.k8s:
         state: present
-        definition: "{{ lookup('file', 'k8s-observability.yml') | from_yaml }}"
+        src: "{{ playbook_dir }}/k8s-observability.yml"
