@@ -1,6 +1,6 @@
 ---
 - name: Déploiement de la stack d'Observabilité (PLG)
-  hosts: all
+  hosts: localhost
   become: yes # Permet d'exécuter les commandes en tant qu'administrateur (root)
 
   tasks:
