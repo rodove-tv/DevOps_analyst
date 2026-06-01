@@ -4,7 +4,7 @@
   gather_facts: no
 
   tasks:
-    - name: Appliquer le manifeste Kubernetes (Loki et Grafana)
+    - name: Appliquer le manifeste Kubernetes (Loki, Grafana et Promtail)
       kubernetes.core.k8s:
         state: present
         src: "{{ playbook_dir }}/k8s-observability.yml"

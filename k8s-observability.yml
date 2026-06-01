@@ -3,7 +3,7 @@ kind: Namespace
 metadata:
   name: observability
 ---
-# Déploiement de Loki
+# 1. DÉPLOIEMENT DE LOKI (LA BASE DE DONNÉES)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -25,7 +25,6 @@ spec:
         ports:
         - containerPort: 3100
 ---
-# Service pour exposer Loki à Grafana
 apiVersion: v1
 kind: Service
 metadata:
@@ -39,7 +38,31 @@ spec:
       port: 3100
       targetPort: 3100
 ---
-# Déploiement de Grafana
+# 2. CONFIGURATION AUTOMATIQUE POUR LIER LOKI À GRAFANA
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: observability
+  labels:
+    grafana_datasource: "1"
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki.observability.svc.cluster.local:3100
+      isDefault: true
+      jsonData:
+        derivedFields:
+          - datasourceUid: loki
+            matcherRegex: '"request_id": "([^"]+)"'
+            name: RequestID
+            url: '$${__value.raw}'
+---
+# 3. DÉPLOIEMENT DE GRAFANA (L'INTERFACE VISUELLE)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -68,31 +91,6 @@ spec:
         configMap:
           name: grafana-datasources
 ---
-# Configuration automatique pour lier Loki à Grafana
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: grafana-datasources
-  namespace: observability
-  labels:
-    grafana_datasource: "1"
-data:
-  datasource.yaml: |
-    apiVersion: 1
-    datasources:
-    - name: Loki
-      type: loki
-      access: proxy
-      url: http://loki:3100
-      isDefault: true
-      jsonData:
-        derivedFields:
-          - datasourceUid: loki
-            matcherRegex: '"request_id": "([^"]+)"'
-            name: RequestID
-            url: '$${__value.raw}'
----
-# Service NodePort pour accéder à Grafana depuis ton navigateur
 apiVersion: v1
 kind: Service
 metadata:
@@ -106,9 +104,9 @@ spec:
     - protocol: TCP
       port: 3000
       targetPort: 3000
-      nodePort: 32000 # Tu pourras accéder à Grafana sur le port 32000
+      nodePort: 32000
 ---
-# Configuration de Promtail (l'aspirateur de logs)
+# 4. CONFIGURATION DE PROMTAIL (L'ASPIRATEUR DE LOGS JSON)
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -124,26 +122,38 @@ data:
       filename: /tmp/positions.yaml
 
     clients:
-      - url: http://loki:3100/loki/api/v1/push
+      - url: http://loki.observability.svc.cluster.local:3100/loki/api/v1/push
 
     scrape_configs:
       - job_name: kubernetes-pods
         kubernetes_sd_configs:
           - role: pod
+        
+        # C'est ici que tu découpes le JSON de l'Élève 1 pour extraire le request_id
+        pipeline_stages:
+          - cri: {} 
+          - json:
+              expressions:
+                request_id: request_id
+                status: status
+                level: level
+          - labels:
+              request_id:
+              status:
+              level:
+
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
             target_label: app
-          - source_labels: [__meta_kubernetes_pod_node_name]
-            target_label: node
           - source_labels: [__meta_kubernetes_namespace]
             target_label: namespace
           - source_labels: [__meta_kubernetes_pod_name]
             target_label: pod
-          - target_label: __path__
+          - source_labels: [__meta_kubernetes_pod_uid]
+            target_label: __path__
             replacement: /var/log/pods/*$1/*/*.log
-            source_labels: [__meta_kubernetes_pod_uid]
 ---
-# Autorisations (RBAC) pour que Promtail puisse lire le cluster
+# 5. DROITS SÉCURITÉ POUR QUE PROMTAIL PUISSE LIRE LES LOGS DU SERVEUR
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -172,14 +182,13 @@ roleRef:
   name: promtail
   apiGroup: rbac.authorization.k8s.io
 ---
-# Déploiement de Promtail
+# 6. DÉPLOIEMENT DE PROMTAIL EN SÉCURITÉ (DAEMONSET)
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
   name: promtail
   namespace: observability
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: promtail
